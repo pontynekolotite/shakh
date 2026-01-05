@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PONTY CHESS</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chess rules engine -->
+  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.umd.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar__left">
+        <div class="pill" id="pillMode">LOCAL</div>
+      </div>
+
+      <div class="topbar__center">
+        <div class="turn" id="turnLabel">WHITE TO MOVE</div>
+      </div>
+
+      <div class="topbar__right">
+        <button class="iconbtn" id="btnMenu" aria-label="Menu">⏸</button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <section class="boardWrap">
+        <div class="board" id="board" aria-label="Chess board"></div>
+      </section>
+
+      <section class="panel">
+        <div class="clocks">
+          <div class="clock">
+            <div class="clock__label">WHITE</div>
+            <div class="clock__time" id="clockWhite">05:00</div>
+          </div>
+
+          <div class="clock">
+            <div class="clock__label">BLACK</div>
+            <div class="clock__time" id="clockBlack">05:00</div>
+          </div>
+        </div>
+
+        <div class="moves">
+          <div class="moves__title">MOVES</div>
+          <div class="moves__list" id="movesList"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnNew">NEW GAME</button>
+          <button class="btn btn--ghost" id="btnUndo">UNDO</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="sheet hidden" id="sheet">
+      <div class="sheet__card">
+        <div class="sheet__title">PAUSE</div>
+        <button class="sheet__btn" id="btnResume">RESUME</button>
+        <button class="sheet__btn sheet__btn--danger" id="btnResign">RESIGN</button>
+        <button class="sheet__btn sheet__btn--ghost" id="btnCloseSheet">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
