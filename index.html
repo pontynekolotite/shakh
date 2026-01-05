@@ -2,13 +2,19 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- Блокируем зум, фиксируем viewport для iPhone -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+
   <title>PONTY CHESS</title>
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- chess.js -->
   <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.umd.min.js"></script>
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="app">
     <header class="topbar">
       <div class="topbar__left">
         <div class="pill" id="pillMode">LOCAL</div>
@@ -34,7 +40,6 @@
             <div class="clock__label">WHITE</div>
             <div class="clock__time" id="clockWhite">05:00</div>
           </div>
-
           <div class="clock">
             <div class="clock__label">BLACK</div>
             <div class="clock__time" id="clockBlack">05:00</div>
@@ -49,10 +54,6 @@
         <div class="actions">
           <button class="btn" id="btnNew">NEW GAME</button>
           <button class="btn btn--ghost" id="btnUndo">UNDO</button>
-        </div>
-
-        <div class="hint" id="hint">
-          Tap a piece, then tap a highlighted square.
         </div>
       </section>
     </main>
