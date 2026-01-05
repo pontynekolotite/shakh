@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8" />
 
-  <!-- Блокируем зум, фиксируем viewport для iPhone -->
+  <!-- жестко фиксируем viewport, убираем зум -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
   <title>PONTY CHESS</title>
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- chess.js -->
+  <!-- chess.js фиксированной версии -->
   <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.umd.min.js"></script>
 </head>
+
 <body>
-  <div class="app" id="app">
+  <div class="app">
     <header class="topbar">
       <div class="topbar__left">
         <div class="pill" id="pillMode">LOCAL</div>
@@ -35,7 +38,7 @@
       </section>
 
       <section class="panel">
-        <div class="clocks">
+        <div class="row">
           <div class="clock">
             <div class="clock__label">WHITE</div>
             <div class="clock__time" id="clockWhite">05:00</div>
@@ -46,24 +49,38 @@
           </div>
         </div>
 
+        <div class="row row--actions">
+          <button class="btn" id="btnNew">NEW GAME</button>
+          <button class="btn btn--ghost" id="btnUndo">UNDO</button>
+        </div>
+
         <div class="moves">
           <div class="moves__title">MOVES</div>
           <div class="moves__list" id="movesList">—</div>
         </div>
-
-        <div class="actions">
-          <button class="btn" id="btnNew">NEW GAME</button>
-          <button class="btn btn--ghost" id="btnUndo">UNDO</button>
-        </div>
       </section>
     </main>
 
+    <!-- PAUSE SHEET -->
     <div class="sheet hidden" id="sheet">
       <div class="sheet__card">
         <div class="sheet__title">PAUSE</div>
         <button class="sheet__btn" id="btnResume">RESUME</button>
         <button class="sheet__btn sheet__btn--danger" id="btnResign">RESIGN</button>
         <button class="sheet__btn sheet__btn--ghost" id="btnCloseSheet">CLOSE</button>
+      </div>
+    </div>
+
+    <!-- PROMOTION -->
+    <div class="promo hidden" id="promo">
+      <div class="promo__card">
+        <div class="promo__title">PROMOTION</div>
+        <div class="promo__grid">
+          <button class="promo__btn" data-p="q">QUEEN</button>
+          <button class="promo__btn" data-p="r">ROOK</button>
+          <button class="promo__btn" data-p="b">BISHOP</button>
+          <button class="promo__btn" data-p="n">KNIGHT</button>
+        </div>
       </div>
     </div>
 
