@@ -17,13 +17,17 @@
   const btnResign = document.getElementById("btnResign");
   const btnCloseSheet = document.getElementById("btnCloseSheet");
 
+  const promo = document.getElementById("promo");
+  const promoBtns = Array.from(document.querySelectorAll(".promo__btn"));
+
   const toastEl = document.getElementById("toast");
 
-  // iOS: режем жесты зума
-  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
-  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
-  document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
+  // iOS: блокируем жесты зума
+  ["gesturestart","gesturechange","gestureend"].forEach(evt => {
+    document.addEventListener(evt, (e) => e.preventDefault(), { passive: false });
+  });
 
+  // Unicode пока как плейсхолдер. Потом заменим на SVG стеклянных фигур.
   const glyph = {
     p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
     P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔"
@@ -33,7 +37,11 @@
   let legalTargets = new Set();
   let lastMoveSquares = { from: null, to: null };
 
-  // local clocks 5+0
+  // drag state
+  let dragging = null; // { from, pieceEl, ghostEl }
+  let pendingPromotion = null; // { from, to }
+
+  // clocks 5+0 local
   let clocks = {
     wMs: 5 * 60_000,
     bMs: 5 * 60_000,
@@ -56,13 +64,20 @@
     toastEl._t = setTimeout(() => toastEl.classList.add("hidden"), 1200);
   }
 
+  function clearSelection(){
+    selected = null;
+    legalTargets = new Set();
+  }
+
   function squareColor(fileIdx, rankIdx){
     return (fileIdx + rankIdx) % 2 === 0 ? "dark" : "light";
   }
 
-  function clearSelection(){
-    selected = null;
-    legalTargets = new Set();
+  function getSquareFromPoint(x, y){
+    const el = document.elementFromPoint(x, y);
+    if(!el) return null;
+    const sqEl = el.closest?.(".sq");
+    return sqEl ? sqEl.dataset.sq : null;
   }
 
   function renderMoves(){
@@ -89,7 +104,7 @@
   function render(){
     boardEl.innerHTML = "";
 
-    const board = game.board(); // [8..1][a..h]
+    const board = game.board();
     for(let r = 0; r < 8; r++){
       for(let f = 0; f < 8; f++){
         const piece = board[r][f];
@@ -112,13 +127,21 @@
           const pEl = document.createElement("div");
           pEl.className = `piece ${isWhite ? "white" : "black"}`;
           pEl.textContent = glyph[key] || "?";
+          pEl.dataset.piece = piece.type;
+          pEl.dataset.color = piece.color;
+          pEl.dataset.sq = sq;
+
+          // drag start on pointerdown
+          pEl.addEventListener("pointerdown", onPiecePointerDown, { passive: false });
+
+          // tap-to-move: click selects too
+          pEl.addEventListener("click", () => onSquareTap(sq), { passive: true });
+
           sqEl.appendChild(pEl);
         }
 
-        // и клик, и тач, чтобы на всех устройствах
-        sqEl.addEventListener("click", onSquareTap, { passive: true });
-        sqEl.addEventListener("touchstart", onSquareTap, { passive: true });
-
+        // tap on square
+        sqEl.addEventListener("click", () => onSquareTap(sq), { passive: true });
         boardEl.appendChild(sqEl);
       }
     }
@@ -128,36 +151,15 @@
     renderClocks();
   }
 
-  function onSquareTap(e){
-    const sq = e.currentTarget.dataset.sq;
+  function onSquareTap(sq){
+    if(!clocks.running) return;
 
-    if(!clocks.running){
-      toast("GAME OVER");
-      return;
-    }
-
-    // если это ход по подсвеченной клетке
+    // if selected and tap target
     if(selected && legalTargets.has(sq)){
-      const move = game.move({ from: selected, to: sq, promotion: "q" });
-      if(!move){
-        clearSelection();
-        render();
-        return;
-      }
-
-      lastMoveSquares = { from: move.from, to: move.to };
-      clearSelection();
-      render();
-
-      if(game.isGameOver()){
-        clocks.running = false;
-        if(game.isCheckmate()) toast("CHECKMATE");
-        else toast("DRAW");
-      }
+      tryMove(selected, sq);
       return;
     }
 
-    // иначе пытаемся выбрать фигуру
     const piece = game.get(sq);
     if(!piece){
       clearSelection();
@@ -177,6 +179,144 @@
     render();
   }
 
+  function needsPromotion(from, to){
+    const p = game.get(from);
+    if(!p || p.type !== "p") return false;
+    const rank = to[1];
+    return (p.color === "w" && rank === "8") || (p.color === "b" && rank === "1");
+  }
+
+  function openPromotion(from, to){
+    pendingPromotion = { from, to };
+    promo.classList.remove("hidden");
+  }
+
+  function closePromotion(){
+    promo.classList.add("hidden");
+  }
+
+  promoBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      if(!pendingPromotion) return;
+      const promoPiece = btn.dataset.p; // q r b n
+      const { from, to } = pendingPromotion;
+      pendingPromotion = null;
+      closePromotion();
+      tryMove(from, to, promoPiece);
+    });
+  });
+
+  function tryMove(from, to, promotion){
+    if(needsPromotion(from, to) && !promotion){
+      openPromotion(from, to);
+      return;
+    }
+
+    const move = game.move({ from, to, promotion: promotion || "q" });
+    if(!move){
+      toast("ILLEGAL");
+      clearSelection();
+      render();
+      return;
+    }
+
+    lastMoveSquares = { from: move.from, to: move.to };
+    clearSelection();
+    render();
+
+    if(game.isGameOver()){
+      clocks.running = false;
+      if(game.isCheckmate()) toast("CHECKMATE");
+      else toast("DRAW");
+    }
+  }
+
+  function onPiecePointerDown(e){
+    if(!clocks.running) return;
+    if(promo && !promo.classList.contains("hidden")) return; // while promotion
+
+    const pieceEl = e.currentTarget;
+    const from = pieceEl.dataset.sq;
+    const color = pieceEl.dataset.color;
+
+    // only current side can start drag
+    if(color !== game.turn()){
+      toast("NOT YOUR TURN");
+      return;
+    }
+
+    // prevent page scroll
+    e.preventDefault();
+    pieceEl.setPointerCapture?.(e.pointerId);
+
+    // set selection and legal targets
+    selected = from;
+    legalTargets = new Set(game.moves({ square: from, verbose: true }).map(m => m.to));
+    render();
+
+    // create ghost (copy style)
+    const ghost = pieceEl.cloneNode(true);
+    ghost.classList.add("ghost");
+    ghost.style.width = `${pieceEl.getBoundingClientRect().width}px`;
+    ghost.style.height = `${pieceEl.getBoundingClientRect().height}px`;
+    document.body.appendChild(ghost);
+
+    dragging = { from, pieceEl, ghostEl: ghost };
+
+    moveGhost(e.clientX, e.clientY);
+
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
+    window.addEventListener("pointerup", onPointerUp, { passive: false });
+    window.addEventListener("pointercancel", onPointerUp, { passive: false });
+  }
+
+  function moveGhost(x, y){
+    if(!dragging) return;
+    dragging.ghostEl.style.left = `${x}px`;
+    dragging.ghostEl.style.top = `${y}px`;
+  }
+
+  function onPointerMove(e){
+    if(!dragging) return;
+    e.preventDefault();
+    moveGhost(e.clientX, e.clientY);
+
+    const sq = getSquareFromPoint(e.clientX, e.clientY);
+    // live highlight: just re-render only if needed
+    // simple: do nothing here, targets already shown
+    // можно добавить hover подсветку позже
+    void sq;
+  }
+
+  function onPointerUp(e){
+    if(!dragging) return;
+    e.preventDefault();
+
+    const { from, ghostEl } = dragging;
+    dragging = null;
+
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+
+    ghostEl.remove();
+
+    const to = getSquareFromPoint(e.clientX, e.clientY);
+    if(!to){
+      clearSelection();
+      render();
+      return;
+    }
+
+    if(!legalTargets.has(to)){
+      clearSelection();
+      render();
+      return;
+    }
+
+    tryMove(from, to);
+  }
+
   function tick(){
     if(!clocks.running) return;
 
@@ -184,15 +324,13 @@
     const dt = now - clocks.lastTickAt;
     clocks.lastTickAt = now;
 
-    // chess.js 1.0.0: isGameOver()
     if(game.isGameOver()){
       clocks.running = false;
       renderClocks();
       return;
     }
 
-    const turn = game.turn();
-    if(turn === "w") clocks.wMs -= dt;
+    if(game.turn() === "w") clocks.wMs -= dt;
     else clocks.bMs -= dt;
 
     if(clocks.wMs <= 0 || clocks.bMs <= 0){
@@ -207,6 +345,8 @@
     game.reset();
     clearSelection();
     lastMoveSquares = { from: null, to: null };
+    pendingPromotion = null;
+    closePromotion();
 
     clocks = {
       wMs: 5 * 60_000,
@@ -222,6 +362,8 @@
 
   btnUndo.addEventListener("click", () => {
     if(!clocks.running) return;
+
+    // undo one ply
     const m = game.undo();
     if(m){
       lastMoveSquares = { from: null, to: null };
@@ -233,7 +375,6 @@
   btnMenu.addEventListener("click", () => sheet.classList.remove("hidden"));
   btnResume.addEventListener("click", () => sheet.classList.add("hidden"));
   btnCloseSheet.addEventListener("click", () => sheet.classList.add("hidden"));
-
   btnResign.addEventListener("click", () => {
     sheet.classList.add("hidden");
     clocks.running = false;
